@@ -64,3 +64,70 @@ export default function Home() {
     </main>
   )
 }
+
+import type React from "react"
+import type { Metadata } from "next"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+
+const inter = Inter({ subsets: ["latin"] })
+
+export const metadata: Metadata = {
+  title: "PipeFix AI - Pipe Problem Detection & Solutions",
+  description: "Upload images of pipe problems and get AI-powered solutions",
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+import { openai } from "@ai-sdk/openai"
+import { streamText } from "ai"
+import type { NextRequest } from "next/server"
+
+export const runtime = "nodejs"
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { messages } = body
+
+   // Check if we have messages
+    if (!messages || !Array.isArray(messages)) {
+      return new Response(JSON.stringify({ error: "Messages are required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+   // Stream the response from the AI
+    const result = streamText({
+      model: openai("gpt-4o"),
+      messages,
+      temperature: 0.7,
+      maxTokens: 1000,
+    })
+
+   // Return the streamed response
+    return result.toDataStreamResponse()
+  } catch (error) {
+    console.error("Error in chat API:", error)
+    return new Response(JSON.stringify({ error: "Failed to process request" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+}
+
